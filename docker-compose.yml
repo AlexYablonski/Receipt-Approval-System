@@ -1,0 +1,19 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    # Optional: the app runs without a .env file (Mock extractor is the default).
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      # Holds app.db and uploads/ (added in later modules) so they survive container restarts.
+      - ./data:/app/data
+    healthcheck:
+      # The slim image has no curl, so use Python. urlopen raises on non-2xx responses.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
