@@ -1,0 +1,10 @@
+# Top-level packages only, hand-pinned. Their own dependencies (starlette, pydantic,
+# python-dotenv, etc.) are installed automatically and are not pinned here.
+fastapi==0.165.0
+uvicorn==0.54.0
+Jinja2==3.1.6
+pydantic-settings==2.16.3
+
+# Testing (TestClient needs httpx)
+pytest==9.2.0
+httpx==0.28.1
