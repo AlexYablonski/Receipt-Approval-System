@@ -16,9 +16,14 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
+# Migration tooling, so "alembic upgrade head" can run when the container starts (see docker-compose.yml).
+COPY alembic.ini ./
+COPY alembic ./alembic
 
 USER appuser
 EXPOSE 8000
 
-# 0.0.0.0 so the port is reachable from outside the container.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# On every start: bring the database up to date, then run the server. "exec" makes uvicorn the
+# main process, so "docker compose stop" reaches it directly. 0.0.0.0 so the port is reachable
+# from outside the container.
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
