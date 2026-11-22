@@ -5,6 +5,10 @@ uvicorn==0.54.0
 Jinja2==3.1.6
 pydantic-settings==2.16.3
 
+# Database and migrations
+SQLAlchemy==2.0.58
+alembic==1.20.1
+
 # Testing (TestClient needs httpx)
 pytest==9.2.0
 httpx==0.28.1
