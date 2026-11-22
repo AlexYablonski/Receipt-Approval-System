@@ -11,5 +11,9 @@ class Settings(BaseSettings):
     # An invalid value (e.g. EXTRACTOR=banana) stops the app at startup with a clear error.
     extractor: Literal["mock", "ollama"] = "mock"
 
+    # A relative SQLite path is relative to where the app starts (the repo root in venv mode,
+    # /app in Docker), so the database lands in the ./data folder either way.
+    database_url: str = "sqlite:///data/app.db"
+
 
 settings = Settings()
