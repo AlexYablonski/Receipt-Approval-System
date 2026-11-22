@@ -1,5 +1,6 @@
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +15,13 @@ class Settings(BaseSettings):
     # A relative SQLite path is relative to where the app starts (the repo root in venv mode,
     # /app in Docker), so the database lands in the ./data folder either way.
     database_url: str = "sqlite:///data/app.db"
+
+    # Seconds the mock extractor waits before returning, to imitate a slow AI call.
+    # Tests set it to 0. A negative value stops the app at startup.
+    mock_delay_seconds: float = Field(default=2.0, ge=0)
+
+    # When true, every mock extraction fails, to exercise the FAILED and retry paths.
+    mock_fail: bool = False
 
 
 settings = Settings()
