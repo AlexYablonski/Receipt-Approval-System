@@ -2,7 +2,7 @@
 
 A lightweight web app where employees upload receipts, AI extracts the data, the employee reviews and submits, and a manager approves or rejects.
 
-> Work in progress. So far: the project scaffolding and the database schema (tables and migrations).
+> Work in progress. So far: the project scaffolding, the database schema (tables and migrations), and the receipt extractor interface with a mock extractor.
 
 ## Requirements
 
@@ -37,8 +37,10 @@ Settings come from environment variables. For local use, copy `.env.example` to 
 | --- | --- | --- |
 | `EXTRACTOR` | `mock`, `ollama` | `mock` |
 | `DATABASE_URL` | a SQLAlchemy database URL (SQLite) | `sqlite:///data/app.db` |
+| `MOCK_DELAY_SECONDS` | seconds the mock extractor waits, 0 or more (only used when `EXTRACTOR=mock`) | `2` |
+| `MOCK_FAIL` | `true` makes every mock extraction fail (only used when `EXTRACTOR=mock`) | `false` |
 
-An invalid `EXTRACTOR` value stops the app at startup with an error. A relative SQLite path in `DATABASE_URL` is relative to where the app starts (the repo root without Docker, `/app` in Docker).
+An invalid `EXTRACTOR` value or a negative `MOCK_DELAY_SECONDS` stops the app at startup with an error. A relative SQLite path in `DATABASE_URL` is relative to where the app starts (the repo root without Docker, `/app` in Docker).
 
 ## Database
 
@@ -50,6 +52,18 @@ Design notes and limitations:
 
 - **`FAILED` status.** It is an additional status beyond Uploaded, Processing, Review, Submitted, Approved and Rejected. A receipt whose extraction fails moves to `FAILED`, keeps its uploaded file and can be retried, instead of being stuck in Processing.
 - **Money is stored as integer cents.** This assumes currencies with two decimal places. Currencies with none (JPY) or three (KWD) are not handled correctly.
+
+## Receipt extraction
+
+Extractors read an uploaded file and return the receipt's data. They all follow one interface (`app/services/extractors/base.py`): `extract(file_path, categories)`, where `categories` is the company's list of category names. The result holds the merchant, purchase date, total, currency, tax, the line items (an amount and a guessed category each) and a confidence score per field. An extractor never touches the database, and raises `ExtractionError` if it cannot read the receipt. The `EXTRACTOR` setting picks which one runs (`get_extractor()` in `app/services/extractors/__init__.py`).
+
+- **Mock (default).** It does not read the receipt. It invents a plausible one from the file's SHA-256 hash, so the same file always gives the same result, and it waits `MOCK_DELAY_SECONDS` to imitate a slow AI call. Setting `MOCK_FAIL=true` makes every extraction fail, to test the failed state and retry.
+- **Ollama.** Planned, for live extraction with a local model. The `EXTRACTOR` setting accepts `ollama`, but the extractor is not built yet.
+
+Design notes and limitations:
+
+- **Totals.** The extractor contract assumes every receipt has at least one line item and that the line items plus tax equal the total. The mock always satisfies this. Real receipts can break it (see Future improvements).
+- **Confidence scores** are a dictionary of scores from 0 to 1 (one per field, plus one entry per line item), meant to be stored as-is in the `receipts.confidence` JSON column.
 
 ## Tests
 
@@ -72,3 +86,4 @@ _To be completed. Development log: `docs/AI_LOG.md`._
 - **Employee and manager departures.** Today, foreign keys block deleting a user who still has receipts, reviews or audit events. A standard archive process for separations could move the departing user's rows (and files) into archive tables, possibly with an `is_active` flag on `users` to deactivate login first. Open point: how to archive a manager whose decisions are referenced by other people's receipts.
 - **Manager-defined categories.** Today there is one company-wide `categories` list, defined by the company. Letting managers add or edit categories for their own team or department would give flexibility in a large company. Structurally this means a nullable owner or department column on `categories`, name uniqueness per scope instead of global (a constraint change, so a batch-mode migration), and a manager-facing screen with a permission check.
 - **Retiring categories.** Today the list can grow (new categories are added by migration), but a category that line items use cannot be deleted (foreign key, no cascading deletes), so retiring one isn't supported. The same kind of archive process as for users could move retired categories to an archive table while old line items keep their reference. A lighter first step is an `is_active` flag on `categories` (one migration, plus a filter so the category dropdown hides inactive ones).
+- **Rounding, tips and discounts in the totals.** Today the extractor contract assumes the line items plus tax equal the total, and the mock always produces receipts that do. Real receipts often break this: tax may be rounded per item or per receipt, a tip or service charge may be added after tax, and discounts or coupons reduce the total. Handling them could mean allowing a tolerance of a few cents, extracting tips and discounts as their own values (a discount as a negative amount), and showing a mismatch to the employee as a warning with the reason instead of a hard error.
