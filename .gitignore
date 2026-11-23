@@ -10,3 +10,6 @@ __pycache__/
 # finds an existing, user-owned directory instead of creating a root-owned one.
 data/*
 !data/.gitkeep
+.Rhistory
+.RData
+.Rproj.user/
