@@ -2,16 +2,13 @@
 so these tests check the migration and the models together."""
 
 import threading
-from pathlib import Path
 
 import pytest
 from alembic import command
-from alembic.config import Config
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.db import create_db_engine
 from app.models import (
     AuditEvent,
     Category,
@@ -23,56 +20,7 @@ from app.models import (
     Role,
     User,
 )
-
-ROOT = Path(__file__).resolve().parents[1]
-
-
-def alembic_config(db_url: str) -> Config:
-    config = Config(str(ROOT / "alembic.ini"))
-    config.set_main_option("script_location", str(ROOT / "alembic"))
-    config.set_main_option("sqlalchemy.url", db_url)
-    return config
-
-
-@pytest.fixture
-def db_url(tmp_path):
-    return f"sqlite:///{tmp_path / 'test.db'}"
-
-
-@pytest.fixture
-def engine(db_url):
-    command.upgrade(alembic_config(db_url), "head")
-    engine = create_db_engine(db_url)
-    yield engine
-    engine.dispose()
-
-
-@pytest.fixture
-def session(engine):
-    with Session(engine) as session:
-        yield session
-
-
-def make_user(session, email="emp@example.com", role=Role.EMPLOYEE):
-    user = User(email=email, name="Test User", role=role, password_hash="not-a-real-hash")
-    session.add(user)
-    session.commit()
-    return user
-
-
-def make_receipt(session, owner, **overrides):
-    fields = dict(
-        owner_id=owner.id,
-        status=ReceiptStatus.UPLOADED,
-        generated_filename="abc123.pdf",
-        original_filename="lunch.pdf",
-        file_hash="a" * 64,
-    )
-    fields.update(overrides)
-    receipt = Receipt(**fields)
-    session.add(receipt)
-    session.commit()
-    return receipt
+from tests.helpers import alembic_config, make_receipt, make_user
 
 
 # --- migrations ---------------------------------------------------------------
