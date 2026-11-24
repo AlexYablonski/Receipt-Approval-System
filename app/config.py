@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field
@@ -15,6 +16,9 @@ class Settings(BaseSettings):
     # A relative SQLite path is relative to where the app starts (the repo root in venv mode,
     # /app in Docker), so the database lands in the ./data folder either way.
     database_url: str = "sqlite:///data/app.db"
+
+    # Folder where uploaded receipt files are stored. Relative to where the app starts, like database_url.
+    upload_dir: Path = Path("data/uploads")
 
     # Seconds the mock extractor waits before returning, to imitate a slow AI call.
     # Tests set it to 0. A negative value stops the app at startup.
